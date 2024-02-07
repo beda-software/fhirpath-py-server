@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "fhirpath-py-server"
+version = "0.1.0"
+description = ""
+authors = ["beda.software <info@beda.software>"]
+readme = "README.md"
+packages = [{include = "fhirpath_py_server"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+aiohttp = "^3.9.3"
+fhirpathpy = "^1.0.0"
+python-dateutil = "^2.8.2"
+aiohttp-cors = "^0.7.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
