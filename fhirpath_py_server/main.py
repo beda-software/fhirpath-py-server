@@ -1,7 +1,7 @@
 import re
 import aiohttp_cors
 from aiohttp import web
-from fhirpathpy import evaluate
+from fhirpathpy import evaluate, __version__ as fhirpathpy_version
 
 
 def parse_request_data(data):
@@ -32,7 +32,10 @@ def create_parameters(expression, context, resource):
         {
             "name": "parameters",
             "part": [
-                {"name": "evaluator", "valueString": "fhirpath-py"},
+                {
+                    "name": "evaluator",
+                    "valueString": f"fhirpath-py {fhirpathpy_version}",
+                },
                 {"name": "expression", "valueString": expression},
                 {"name": "context", "valueString": context},
                 {"name": "resource", "resource": resource},
