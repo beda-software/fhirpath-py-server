@@ -32,8 +32,10 @@ def create_parameters(expression, context, resource):
         {
             "name": "parameters",
             "part": [
-                {"name": "evaluator", "valueString": "fhirpath-py"},
-                {"name": "evaluatorVersion", "valueString": fhirpathpy_version},
+                {
+                    "name": "evaluator",
+                    "valueString": f"fhirpath-py {fhirpathpy_version}",
+                },
                 {"name": "expression", "valueString": expression},
                 {"name": "context", "valueString": context},
                 {"name": "resource", "resource": resource},
