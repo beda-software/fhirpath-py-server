@@ -121,6 +121,8 @@ async def handle_fhirpath(request):
         parse_request_data(await request.json())
     )
 
+    variables["resource"] = resource
+
     if expression is None or resource is None:
         return web.json_response({"error": "Not enough data"}, status=400)
 
