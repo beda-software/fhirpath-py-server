@@ -1,75 +1,7 @@
-import re
 import aiohttp_cors
 from aiohttp import web
-from fhirpathpy import evaluate, __version__ as fhirpathpy_version
 
-
-def parse_request_data(data):
-    expression = None
-    resource = None
-    context = None
-
-    for param in data["parameter"]:
-        if param["name"] == "expression":
-            expression = param.get("valueString")
-        elif param["name"] == "resource":
-            resource = param.get("resource")
-        elif param["name"] == "context":
-            context = param.get("valueString")
-
-    return expression, resource, context
-
-
-def create_parameters(expression, context, resource):
-    expression = re.sub(r"trace\(.*?\)", "", expression)
-
-    if context:
-        expression = f"{context}.{expression}"
-
-    result = evaluate(resource, expression)
-
-    return [
-        {
-            "name": "parameters",
-            "part": [
-                {
-                    "name": "evaluator",
-                    "valueString": f"fhirpath-py {fhirpathpy_version}",
-                },
-                {"name": "expression", "valueString": expression},
-                {"name": "context", "valueString": context},
-                {"name": "resource", "resource": resource},
-            ],
-        },
-        {
-            "name": "result",
-            "part": [
-                {
-                    "name": "",
-                    "resource": (
-                        result[0]
-                        if len(result) == 1
-                        else None if len(result) == 0 else result
-                    ),
-                }
-            ],
-        },
-    ]
-
-
-async def handle_fhirpath(request):
-    expression, resource, context = parse_request_data(await request.json())
-
-    if expression is None or resource is None:
-        return web.json_response({"error": "Not enough data"}, status=400)
-
-    return web.json_response(
-        {
-            "resourceType": "Parameters",
-            "id": "fhirpath",
-            "parameter": create_parameters(expression, context, resource),
-        }
-    )
+from fhirpath import handle_fhirpath
 
 
 app = web.Application()
