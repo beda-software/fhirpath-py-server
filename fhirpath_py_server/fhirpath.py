@@ -4,6 +4,34 @@ import fhirpathpy.engine.nodes as nodes
 import json
 from decimal import Decimal
 
+from fhirpathpy.models import models
+
+r4_model = models["r4"]
+r5_model = models["r5"]
+
+
+def collect_trace_data():
+    """Create a trace callback that collects trace data"""
+    traces = []
+    
+    def trace_callback(label, content):
+        """Callback function to collect trace information"""
+        traces.append({"label": label, "content": content})
+    
+    return trace_callback, traces
+
+
+def evaluate_with_trace(data, expression, variables=None):
+    """Evaluate FHIRPath expression with trace collection"""
+    trace_callback, trace_data = collect_trace_data()
+    options = { "trace_callback": trace_callback, "return_raw_data": True }
+    result = evaluate(data, expression, variables or {}, model=r4_model, options=options)
+    
+    # Debug: print what we got
+    print(f"DEBUG: trace_data collected: {trace_data}")
+    
+    return result, trace_data
+
 
 def parse_request_data(data):
     expression = None
@@ -196,7 +224,11 @@ def create_parameters(
     resource_type_path = f"{resource_type}." if resource_type else ""
 
     if context:
-        context_nodes = evaluate(resource, context, variables)
+        options = {"return_raw_data": True}
+        context_nodes = evaluate(resource, context, variables or {}, model=r4_model, options=options)
+        if not isinstance(context_nodes, list):
+            context_nodes = [context_nodes]
+            
         for context_node_index, context_node in enumerate(context_nodes):
             result_data = {
                 "result": [],
@@ -204,13 +236,29 @@ def create_parameters(
                 "context": f"{resource_type_path}{context}[{context_node_index}]",
             }
 
-            context_node_results = evaluate(context_node, expression, variables)
+            # Use the new trace-aware evaluation function
+            context_node_results, trace_data = evaluate_with_trace(context_node, expression, variables)
+            
             result_data["result"] = node_results_to_types(context_node_results)
+
+            # Build trace part if traces exist
+            trace_part = []
+            if trace_data:
+                for trace in trace_data:
+                    # Parse the trace content to extract structured data
+                    trace_part.append({
+                        "name": "trace",
+                        "valueString": trace["label"],
+                        "part": node_results_to_types(trace["content"])
+                    })
 
             results.append(
                 {
                     "name": "result",
-                    "part": result_data["result"],
+                    "part": [
+                        *result_data["result"],
+                        *trace_part
+                    ],
                     "valueString": result_data.get("context", expression),
                 }
             )
@@ -221,13 +269,29 @@ def create_parameters(
             "trace": [],
         }
 
-        node_results = evaluate(resource, expression, variables)
+        # Use the new trace-aware evaluation function
+        node_results, trace_data = evaluate_with_trace(resource, expression, variables)
+        
         result_data["result"] = node_results_to_types(node_results)
+
+        # Build trace part if traces exist
+        trace_part = []
+        if trace_data:
+            for trace in trace_data:
+                # Parse the trace content to extract structured data
+                trace_part.append({
+                    "name": "trace",
+                    "valueString": trace["label"],
+                    "part": node_results_to_types(trace["content"])
+                })
 
         results.append(
             {
                 "name": "result",
-                "part": result_data["result"],
+                "part": [
+                    *result_data["result"],
+                    *trace_part
+                ],
             }
         )
 
