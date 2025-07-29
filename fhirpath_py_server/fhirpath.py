@@ -117,21 +117,66 @@ def create_parameters(
 
 
 async def handle_fhirpath(request):
-    expression, resource, context, terminology_server, variables, validate = (
-        parse_request_data(await request.json())
-    )
+    try:
+        expression, resource, context, terminology_server, variables, validate = (
+            parse_request_data(await request.json())
+        )
 
-    variables["resource"] = resource
+        if variables is None:
+            variables = {}
+        variables["resource"] = resource
 
-    if expression is None or resource is None:
-        return web.json_response({"error": "Not enough data"}, status=400)
+        if expression is None or resource is None:
+            return web.json_response({"error": "Not enough data"}, status=400)
 
-    return web.json_response(
-        {
-            "resourceType": "Parameters",
-            "id": "fhirpath",
-            "parameter": create_parameters(
-                expression, resource, context, terminology_server, variables, validate
-            ),
-        }
-    )
+        return web.json_response(
+            {
+                "resourceType": "Parameters",
+                "id": "fhirpath",
+                "parameter": create_parameters(
+                    expression, resource, context, terminology_server, variables, validate
+                ),
+            }
+        )
+    except ValueError as e:
+        return web.json_response(
+            {
+                "resourceType": "OperationOutcome",
+                "issue": [
+                    {
+                        "severity": "error",
+                        "code": "invalid",
+                        "details": {"text": f"Invalid input: {str(e)}"}
+                    }
+                ]
+            },
+            status=400
+        )
+    except KeyError as e:
+        return web.json_response(
+            {
+                "resourceType": "OperationOutcome", 
+                "issue": [
+                    {
+                        "severity": "error",
+                        "code": "required",
+                        "details": {"text": f"Missing required field: {str(e)}"}
+                    }
+                ]
+            },
+            status=400
+        )
+    except Exception as e:
+        return web.json_response(
+            {
+                "resourceType": "OperationOutcome",
+                "issue": [
+                    {
+                        "severity": "error",
+                        "code": "exception",
+                        "details": {"text": f"Internal server error: {str(e)}"}
+                    }
+                ]
+            },
+            status=500
+        )
