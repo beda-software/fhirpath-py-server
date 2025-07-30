@@ -21,11 +21,11 @@ def collect_trace_data():
     return trace_callback, traces
 
 
-def evaluate_with_trace(data, expression, variables=None):
+def evaluate_with_trace(model, data, expression, variables=None):
     """Evaluate FHIRPath expression with trace collection"""
     trace_callback, trace_data = collect_trace_data()
     options = { "trace_callback": trace_callback, "return_raw_data": True }
-    result = evaluate(data, expression, variables or {}, model=r4_model, options=options)
+    result = evaluate(data, expression, variables or {}, model=model, options=options)
     
     # Debug: print what we got
     print(f"DEBUG: trace_data collected: {trace_data}")
@@ -216,7 +216,7 @@ def node_results_to_types(node_results):
 
 
 def create_parameters(
-    expression, resource, context, terminology_server, variables, validate
+    model, expression, resource, context, terminology_server, variables, validate
 ):
     results = []
 
@@ -225,7 +225,7 @@ def create_parameters(
 
     if context:
         options = {"return_raw_data": True}
-        context_nodes = evaluate(resource, context, variables or {}, model=r4_model, options=options)
+        context_nodes = evaluate(resource, context, variables or {}, model=model, options=options)
         if not isinstance(context_nodes, list):
             context_nodes = [context_nodes]
             
@@ -237,7 +237,7 @@ def create_parameters(
             }
 
             # Use the new trace-aware evaluation function
-            context_node_results, trace_data = evaluate_with_trace(context_node, expression, variables)
+            context_node_results, trace_data = evaluate_with_trace(model, context_node, expression, variables)
             
             result_data["result"] = node_results_to_types(context_node_results)
 
@@ -270,7 +270,7 @@ def create_parameters(
         }
 
         # Use the new trace-aware evaluation function
-        node_results, trace_data = evaluate_with_trace(resource, expression, variables)
+        node_results, trace_data = evaluate_with_trace(model, resource, expression, variables)
         
         result_data["result"] = node_results_to_types(node_results)
 
@@ -295,13 +295,16 @@ def create_parameters(
             }
         )
 
+    versionStamp = fhirpathpy_version
+    if model == r5_model:
+        versionStamp = versionStamp + "-R5"
     return [
         {
             "name": "parameters",
             "part": [
                 {
                     "name": "evaluator",
-                    "valueString": f"fhirpath-py {fhirpathpy_version}",
+                    "valueString": f"fhirpath-py {versionStamp}",
                 },
                 *([{"name": "context", "valueString": context}] if context else []),
                 {"name": "expression", "valueString": expression},
@@ -328,8 +331,13 @@ def create_parameters(
         *results,
     ]
 
+async def handle_fhirpath_r5(request):
+    return await handle_fhirpath(request, model=r5_model)
 
-async def handle_fhirpath(request):
+async def handle_fhirpath_r4(request):
+    return await handle_fhirpath(request, model=r4_model)
+
+async def handle_fhirpath(request, model):
     try:
         expression, resource, context, terminology_server, variables, validate = (
             parse_request_data(await request.json())
@@ -347,7 +355,7 @@ async def handle_fhirpath(request):
                 "resourceType": "Parameters",
                 "id": "fhirpath",
                 "parameter": create_parameters(
-                    expression, resource, context, terminology_server, variables, validate
+                    model, expression, resource, context, terminology_server, variables, validate
                 ),
             }
         )
