@@ -24,7 +24,7 @@ def collect_trace_data():
 def evaluate_with_trace(model, data, expression, variables=None):
     """Evaluate FHIRPath expression with trace collection"""
     trace_callback, trace_data = collect_trace_data()
-    options = { "trace_callback": trace_callback, "return_raw_data": True }
+    options = { "traceFn": trace_callback, "returnRawData": True }
     result = evaluate(data, expression, variables or {}, model=model, options=options)
     
     # Debug: print what we got
@@ -224,7 +224,7 @@ def create_parameters(
     resource_type_path = f"{resource_type}." if resource_type else ""
 
     if context:
-        options = {"return_raw_data": True}
+        options = {"returnRawData": True}
         context_nodes = evaluate(resource, context, variables or {}, model=model, options=options)
         if not isinstance(context_nodes, list):
             context_nodes = [context_nodes]
